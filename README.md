@@ -50,8 +50,8 @@ The backend talks to Binance via [adshao/go-binance](https://github.com/adshao/g
 ## Run it
 
 ```bash
-git clone https://github.com/<you>/binancetracker.git
-cd binancetracker
+git clone git@github.com:Akayashuu/stackcheck.git
+cd stackcheck
 cp .env.example .env
 
 # 32-byte AES key for encrypting your Binance secret at rest in postgres
