@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS settings;
+DROP TABLE IF EXISTS price_quotes;
+DROP TABLE IF EXISTS trades;
+DROP TABLE IF EXISTS assets;
