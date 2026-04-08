@@ -1,0 +1,104 @@
+{
+	"app": {
+		"title": "binancetracker",
+		"tagline": "Suivi P&L auto-hébergé pour vos trades Binance"
+	},
+	"nav": {
+		"dashboard": "Tableau de bord",
+		"trades": "Trades",
+		"settings": "Paramètres"
+	},
+	"dashboard": {
+		"total_invested": "Total investi",
+		"total_value": "Valeur actuelle",
+		"unrealized_pnl": "P&L latent",
+		"realized_pnl": "P&L réalisé",
+		"total_pnl": "P&L total",
+		"positions": "Positions",
+		"empty": "Aucune position. Configurez votre clé API Binance dans les paramètres puis cliquez sur Synchroniser.",
+		"sync": "Synchroniser Binance",
+		"syncing": "Synchronisation…",
+		"sync_done": "{count} nouveaux trades importés",
+		"updated_at": "Mis à jour {time}"
+	},
+	"positions": {
+		"asset": "Actif",
+		"quantity": "Quantité",
+		"avg_cost": "Coût moyen",
+		"current_price": "Prix actuel",
+		"market_value": "Valeur marché",
+		"unrealized": "Latent",
+		"realized": "Réalisé",
+		"change": "Variation"
+	},
+	"trades": {
+		"title": "Trades",
+		"id": "ID",
+		"date": "Date",
+		"asset": "Actif",
+		"side": "Sens",
+		"quantity": "Qté",
+		"price": "Prix",
+		"fee": "Frais",
+		"total": "Total",
+		"empty": "Aucun trade à afficher.",
+		"filter": "Filtrer par actif",
+		"all": "Tous"
+	},
+	"asset": {
+		"back": "Retour au tableau de bord",
+		"summary": "Résumé",
+		"history": "Historique des trades",
+		"lots": "Acquisitions",
+		"lots_empty": "Aucun lot ouvert. Lancez une synchro pour importer vos achats et dépôts.",
+		"lot_acquired": "Acquis le",
+		"lot_source": "Source",
+		"lot_qty_remaining": "Qté",
+		"lot_cost": "Coût total",
+		"lot_unit_cost": "Acheté à",
+		"lot_now": "Vaut",
+		"lot_pnl": "P&L"
+	},
+	"sources": {
+		"spot": "Spot",
+		"convert": "Convert",
+		"fiat_buy": "Achat carte",
+		"recurring": "Récurrent",
+		"deposit": "Dépôt",
+		"earn_reward": "Earn"
+	},
+	"settings": {
+		"title": "Paramètres",
+		"binance_section": "API Binance",
+		"binance_section_help": "Utilisez une clé API en lecture seule. binancetracker ne passe jamais d'ordres.",
+		"api_key": "Clé API",
+		"api_secret": "Secret API",
+		"api_key_set": "(Définie)",
+		"api_key_unset": "(Non définie)",
+		"quote_currency": "Devise de cotation",
+		"language": "Langue",
+		"save": "Enregistrer",
+		"saved": "Paramètres enregistrés",
+		"save_error": "Échec de l'enregistrement"
+	},
+	"add_fund": {
+		"button": "Ajouter un fund",
+		"title": "Ajouter un fund manuellement",
+		"title_edit": "Modifier le fund",
+		"asset": "Actif",
+		"quantity": "Quantité",
+		"unit_cost": "Prix unitaire",
+		"unit_cost_hint": "Laissez vide pour utiliser le prix Binance à la date ci-dessus.",
+		"quote": "Devise du coût",
+		"acquired_at": "Date d'acquisition",
+		"submit": "Ajouter",
+		"save": "Enregistrer",
+		"delete_confirm": "Supprimer ce fund manuel ?"
+	},
+	"common": {
+		"loading": "Chargement…",
+		"error": "Une erreur est survenue",
+		"retry": "Réessayer",
+		"cancel": "Annuler"
+	}
+}

@@ -1,0 +1,104 @@
+{
+	"app": {
+		"title": "binancetracker",
+		"tagline": "Self-hosted P&L tracker for your Binance trades"
+	},
+	"nav": {
+		"dashboard": "Dashboard",
+		"trades": "Trades",
+		"settings": "Settings"
+	},
+	"dashboard": {
+		"total_invested": "Total invested",
+		"total_value": "Current value",
+		"unrealized_pnl": "Unrealized P&L",
+		"realized_pnl": "Realized P&L",
+		"total_pnl": "Total P&L",
+		"positions": "Positions",
+		"empty": "No positions yet. Configure your Binance API key in Settings, then click Sync.",
+		"sync": "Sync Binance",
+		"syncing": "Syncing…",
+		"sync_done": "Imported {count} new trades",
+		"updated_at": "Updated {time}"
+	},
+	"positions": {
+		"asset": "Asset",
+		"quantity": "Quantity",
+		"avg_cost": "Avg cost",
+		"current_price": "Current price",
+		"market_value": "Market value",
+		"unrealized": "Unrealized",
+		"realized": "Realized",
+		"change": "Change"
+	},
+	"trades": {
+		"title": "Trades",
+		"id": "ID",
+		"date": "Date",
+		"asset": "Asset",
+		"side": "Side",
+		"quantity": "Qty",
+		"price": "Price",
+		"fee": "Fee",
+		"total": "Total",
+		"empty": "No trades to display.",
+		"filter": "Filter by asset",
+		"all": "All assets"
+	},
+	"asset": {
+		"back": "Back to dashboard",
+		"summary": "Summary",
+		"history": "Trade history",
+		"lots": "Acquisitions",
+		"lots_empty": "No open lots. Try syncing to import your buys and deposits.",
+		"lot_acquired": "Acquired",
+		"lot_source": "Source",
+		"lot_qty_remaining": "Qty",
+		"lot_cost": "Cost basis",
+		"lot_unit_cost": "Bought at",
+		"lot_now": "Now at",
+		"lot_pnl": "P&L"
+	},
+	"sources": {
+		"spot": "Spot",
+		"convert": "Convert",
+		"fiat_buy": "Buy Crypto",
+		"recurring": "Recurring",
+		"deposit": "Deposit",
+		"earn_reward": "Earn"
+	},
+	"settings": {
+		"title": "Settings",
+		"binance_section": "Binance API",
+		"binance_section_help": "Use a read-only API key. binancetracker never places trades.",
+		"api_key": "API Key",
+		"api_secret": "API Secret",
+		"api_key_set": "(Currently set)",
+		"api_key_unset": "(Not set)",
+		"quote_currency": "Quote currency",
+		"language": "Language",
+		"save": "Save",
+		"saved": "Settings saved",
+		"save_error": "Failed to save settings"
+	},
+	"add_fund": {
+		"button": "Add fund",
+		"title": "Add a fund manually",
+		"title_edit": "Edit fund",
+		"asset": "Asset",
+		"quantity": "Quantity",
+		"unit_cost": "Unit cost",
+		"unit_cost_hint": "Leave empty to use the Binance price at the date above.",
+		"quote": "Cost currency",
+		"acquired_at": "Acquired at",
+		"submit": "Add",
+		"save": "Save",
+		"delete_confirm": "Delete this manual fund?"
+	},
+	"common": {
+		"loading": "Loading…",
+		"error": "An error occurred",
+		"retry": "Retry",
+		"cancel": "Cancel"
+	}
+}
