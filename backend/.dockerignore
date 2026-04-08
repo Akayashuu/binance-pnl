@@ -1,0 +1,8 @@
+.git
+.github
+*.md
+Dockerfile
+.dockerignore
+bin/
+tmp/
+coverage.out
