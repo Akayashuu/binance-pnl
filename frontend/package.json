@@ -38,6 +38,7 @@
 	},
 	"dependencies": {
 		"bits-ui": "^1.0.0-next.65",
+		"chart.js": "^4.5.1",
 		"clsx": "^2.1.1",
 		"lucide-svelte": "^0.456.0",
 		"svelte-i18n": "^4.0.1",

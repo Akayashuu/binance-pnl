@@ -88,3 +88,8 @@ export interface SyncResult {
 	partial_failure: boolean;
 	errors?: string[];
 }
+
+export interface KlinePoint {
+	time: number; // unix ms
+	close: string;
+}

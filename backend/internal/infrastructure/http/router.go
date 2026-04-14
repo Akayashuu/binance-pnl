@@ -33,6 +33,7 @@ func NewRouter(h *Handlers) http.Handler {
 		r.Get("/portfolio", h.getPortfolio)
 		r.Get("/trades", h.listTrades)
 		r.Get("/assets/{symbol}", h.getAssetDetail)
+		r.Get("/klines/{symbol}", h.getKlines)
 		r.Post("/acquisitions", h.createAcquisition)
 		r.Put("/acquisitions/{id}", h.updateAcquisition)
 		r.Delete("/acquisitions/{id}", h.deleteAcquisition)
