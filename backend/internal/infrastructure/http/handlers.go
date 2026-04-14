@@ -7,12 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/binancetracker/binancetracker/internal/application/commands"
 	"github.com/binancetracker/binancetracker/internal/application/ports"
 	"github.com/binancetracker/binancetracker/internal/application/queries"
 	"github.com/binancetracker/binancetracker/internal/domain/shared"
+	"github.com/binancetracker/binancetracker/internal/infrastructure/binance"
 	"github.com/go-chi/chi/v5"
 	"github.com/shopspring/decimal"
 )
@@ -30,6 +32,7 @@ type Handlers struct {
 	UpdateAcquisition *commands.UpdateAcquisition
 	DeleteAcquisition *commands.DeleteAcquisition
 	SettingsRepo      ports.SettingsRepository
+	Binance           *binance.Client
 	Fx                ports.FxRateProvider
 	DisplayCurrency   shared.Symbol
 	QuoteCurrency     shared.Symbol
@@ -55,7 +58,8 @@ func healthz(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (h *Handlers) sync(w http.ResponseWriter, r *http.Request) {
-	res, err := h.Sync.Execute(r.Context())
+	full := r.URL.Query().Get("full") == "true"
+	res, err := h.Sync.Execute(r.Context(), full)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -243,6 +247,41 @@ func (h *Handlers) updateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handlers) getKlines(w http.ResponseWriter, r *http.Request) {
+	sym := chi.URLParam(r, "symbol")
+	if _, err := shared.NewSymbol(sym); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	interval := r.URL.Query().Get("interval")
+	if interval == "" {
+		interval = "1d"
+	}
+	limit := 90
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 && n <= 1000 {
+			limit = n
+		}
+	}
+
+	asset, _ := shared.NewSymbol(sym)
+	klines, err := h.Binance.FetchKlines(r.Context(), asset, interval, limit)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	type klineDTO struct {
+		Time  int64  `json:"time"`
+		Close string `json:"close"`
+	}
+	out := make([]klineDTO, 0, len(klines))
+	for _, k := range klines {
+		out = append(out, klineDTO{Time: k.OpenTime, Close: k.Close.String()})
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // --- helpers ---------------------------------------------------------------

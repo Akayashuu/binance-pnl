@@ -10,13 +10,18 @@
 	},
 	"dashboard": {
 		"total_invested": "Total investi",
+		"total_invested_help": "Capital actuellement immobilisé — somme du coût moyen × quantité pour chaque position encore détenue. Quand tu vends, le coût de la portion vendue est retiré.",
 		"total_value": "Valeur actuelle",
+		"total_value_help": "Combien valent tes positions actuellement, au prix Binance du dernier refresh. C'est quantité détenue × prix actuel, pour chaque actif.",
 		"unrealized_pnl": "P&L latent",
+		"unrealized_pnl_help": "Le gain ou la perte que tu ferais si tu vendais TOUT maintenant au prix du marché. Calcul : Valeur actuelle − Total investi. Tant que tu ne vends pas, ce chiffre est purement théorique.",
 		"realized_pnl": "P&L réalisé",
+		"realized_pnl_help": "Le gain ou la perte déjà encaissé via tes ventes passées. Une fois qu'une vente est faite, le résultat est figé ici et ne bouge plus, peu importe ce que fait le marché ensuite.",
 		"total_pnl": "P&L total",
 		"positions": "Positions",
 		"empty": "Aucune position. Configurez votre clé API Binance dans les paramètres puis cliquez sur Synchroniser.",
 		"sync": "Synchroniser Binance",
+		"full_sync": "Sync complète",
 		"syncing": "Synchronisation…",
 		"sync_done": "{count} nouveaux trades importés",
 		"updated_at": "Mis à jour {time}"
@@ -24,10 +29,15 @@
 	"positions": {
 		"asset": "Actif",
 		"quantity": "Quantité",
+		"quantity_help": "Combien de cet actif tu détiens actuellement (additionne tous les achats + dépôts, retire toutes les ventes).",
 		"avg_cost": "Coût moyen",
+		"avg_cost_help": "Prix moyen pondéré que tu as payé par unité (méthode AVCO). Tes 2 BTC achetés à 50k et 60k → coût moyen 55k.",
 		"current_price": "Prix actuel",
+		"current_price_help": "Dernier prix Binance connu pour cet actif (rafraîchi périodiquement).",
 		"market_value": "Valeur marché",
+		"market_value_help": "Quantité détenue × prix actuel.",
 		"unrealized": "Latent",
+		"unrealized_help": "Gain/perte si tu vendais tout au prix actuel.",
 		"realized": "Réalisé",
 		"change": "Variation"
 	},
@@ -57,7 +67,9 @@
 		"lot_cost": "Coût total",
 		"lot_unit_cost": "Acheté à",
 		"lot_now": "Vaut",
-		"lot_pnl": "P&L"
+		"lot_pnl": "P&L",
+		"lots_total": "Total si je vends maintenant",
+		"lots_total_help": "Ce que tu empocherais (ou perdrais) si tu revendais tout au prix Binance actuel. Colonne Vaut = valeur marché totale, Coût total = ce que tu as payé, P&L = la différence."
 	},
 	"sources": {
 		"spot": "Spot",
@@ -94,6 +106,12 @@
 		"submit": "Ajouter",
 		"save": "Enregistrer",
 		"delete_confirm": "Supprimer ce fund manuel ?"
+	},
+	"chart": {
+		"portfolio_90d": "Valeur du portefeuille — 90 jours",
+		"price_90d": "Prix — 90 jours",
+		"portfolio": "Portefeuille",
+		"all_assets": "Tous les actifs"
 	},
 	"common": {
 		"loading": "Chargement…",

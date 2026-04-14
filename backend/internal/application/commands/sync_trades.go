@@ -57,24 +57,26 @@ type SyncResult struct {
 	Errors         []string       // human-readable error messages, one per failing source
 }
 
-// Execute runs the sync across all sources. The command tries every source
-// even if some fail; failures are reported in the result rather than aborting
-// the run, because partial success is still useful (e.g. spot worked but
-// deposits hit a permission issue).
-func (uc *SyncBinanceTrades) Execute(ctx context.Context) (SyncResult, error) {
+// Execute runs the sync across all sources. When full is true, watermarks are
+// ignored and the entire history is re-fetched from scratch.
+//
+// The command tries every source even if some fail; failures are reported in
+// the result rather than aborting the run, because partial success is still
+// useful (e.g. spot worked but deposits hit a permission issue).
+func (uc *SyncBinanceTrades) Execute(ctx context.Context, full bool) (SyncResult, error) {
 	res := SyncResult{BySource: map[string]int{}}
 
 	// 1. Spot trades
-	uc.runTradeSource(ctx, &res, shared.SourceSpot, "spot trades", uc.importer.FetchTradesSince)
+	uc.runTradeSource(ctx, &res, shared.SourceSpot, "spot trades", full, uc.importer.FetchTradesSince)
 	// 2. Convert
-	uc.runTradeSource(ctx, &res, shared.SourceConvert, "convert", uc.importer.FetchConvertSince)
+	uc.runTradeSource(ctx, &res, shared.SourceConvert, "convert", full, uc.importer.FetchConvertSince)
 	// 3. Fiat buys (Buy Crypto)
-	uc.runTradeSource(ctx, &res, shared.SourceFiatBuy, "fiat buys", uc.importer.FetchFiatBuysSince)
+	uc.runTradeSource(ctx, &res, shared.SourceFiatBuy, "fiat buys", full, uc.importer.FetchFiatBuysSince)
 
 	// 4. Crypto deposits
-	uc.runAcquisitionSource(ctx, &res, shared.SourceDeposit, "deposits", uc.importer.FetchDepositsSince)
+	uc.runAcquisitionSource(ctx, &res, shared.SourceDeposit, "deposits", full, uc.importer.FetchDepositsSince)
 	// 5. Earn rewards
-	uc.runAcquisitionSource(ctx, &res, shared.SourceEarnReward, "earn rewards", uc.importer.FetchEarnRewardsSince)
+	uc.runAcquisitionSource(ctx, &res, shared.SourceEarnReward, "earn rewards", full, uc.importer.FetchEarnRewardsSince)
 
 	// Bubble up an error only if EVERY source failed; otherwise the partial
 	// result is the truthful answer and the UI can surface per-source warnings.
@@ -92,14 +94,19 @@ func (uc *SyncBinanceTrades) runTradeSource(
 	res *SyncResult,
 	source shared.Source,
 	label string,
+	full bool,
 	fetch func(ctx context.Context, since time.Time) ([]trade.Trade, error),
 ) {
-	since, err := uc.tradeWatermark(ctx, source)
-	if err != nil {
-		uc.recordFailure(res, label, fmt.Errorf("watermark: %w", err))
-		return
+	var since time.Time
+	if !full {
+		var err error
+		since, err = uc.tradeWatermark(ctx, source)
+		if err != nil {
+			uc.recordFailure(res, label, fmt.Errorf("watermark: %w", err))
+			return
+		}
 	}
-	uc.logger.Info("syncing source", "source", source, "since", since)
+	uc.logger.Info("syncing source", "source", source, "since", since, "full", full)
 
 	fetched, err := fetch(ctx, since)
 	if err != nil {
@@ -125,14 +132,19 @@ func (uc *SyncBinanceTrades) runAcquisitionSource(
 	res *SyncResult,
 	source shared.Source,
 	label string,
+	full bool,
 	fetch func(ctx context.Context, since time.Time) ([]acquisition.Acquisition, error),
 ) {
-	since, err := uc.acquisitions.LatestAcquiredAt(ctx, source)
-	if err != nil {
-		uc.recordFailure(res, label, fmt.Errorf("watermark: %w", err))
-		return
+	var since time.Time
+	if !full {
+		var err error
+		since, err = uc.acquisitions.LatestAcquiredAt(ctx, source)
+		if err != nil {
+			uc.recordFailure(res, label, fmt.Errorf("watermark: %w", err))
+			return
+		}
 	}
-	uc.logger.Info("syncing source", "source", source, "since", since)
+	uc.logger.Info("syncing source", "source", source, "since", since, "full", full)
 
 	fetched, err := fetch(ctx, since)
 	if err != nil {

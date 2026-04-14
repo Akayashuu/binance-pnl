@@ -10,13 +10,18 @@
 	},
 	"dashboard": {
 		"total_invested": "Total invested",
+		"total_invested_help": "Capital currently at work — sum of the average cost × quantity for each position you still hold. When you sell, the cost basis of the sold portion is removed.",
 		"total_value": "Current value",
+		"total_value_help": "What your positions are worth right now, at the latest Binance price. It's quantity held × current price, summed across every asset.",
 		"unrealized_pnl": "Unrealized P&L",
+		"unrealized_pnl_help": "The gain or loss you would lock in by selling everything right now at market price. Formula: Current value − Total invested. As long as you don't sell, this number is purely on paper.",
 		"realized_pnl": "Realized P&L",
+		"realized_pnl_help": "The gain or loss you have already cashed in via past sells. Once a sale is done, the result is frozen here and doesn't move regardless of what the market does next.",
 		"total_pnl": "Total P&L",
 		"positions": "Positions",
 		"empty": "No positions yet. Configure your Binance API key in Settings, then click Sync.",
 		"sync": "Sync Binance",
+		"full_sync": "Full Sync",
 		"syncing": "Syncing…",
 		"sync_done": "Imported {count} new trades",
 		"updated_at": "Updated {time}"
@@ -24,10 +29,15 @@
 	"positions": {
 		"asset": "Asset",
 		"quantity": "Quantity",
+		"quantity_help": "How much of this asset you currently hold (sum of all buys + deposits, minus all sells).",
 		"avg_cost": "Avg cost",
+		"avg_cost_help": "Weighted-average price you paid per unit (AVCO method). 2 BTC bought at 50k and 60k → average cost 55k.",
 		"current_price": "Current price",
+		"current_price_help": "Latest known Binance price for this asset (refreshed periodically).",
 		"market_value": "Market value",
+		"market_value_help": "Quantity held × current price.",
 		"unrealized": "Unrealized",
+		"unrealized_help": "Gain/loss if you sold everything at the current price.",
 		"realized": "Realized",
 		"change": "Change"
 	},
@@ -57,7 +67,9 @@
 		"lot_cost": "Cost basis",
 		"lot_unit_cost": "Bought at",
 		"lot_now": "Now at",
-		"lot_pnl": "P&L"
+		"lot_pnl": "P&L",
+		"lots_total": "Total if I sell now",
+		"lots_total_help": "What you'd pocket (or lose) if you sold everything at the current Binance price. Now at = total market value, Cost basis = what you paid, P&L = the difference."
 	},
 	"sources": {
 		"spot": "Spot",
@@ -94,6 +106,12 @@
 		"submit": "Add",
 		"save": "Save",
 		"delete_confirm": "Delete this manual fund?"
+	},
+	"chart": {
+		"portfolio_90d": "Portfolio value — 90 days",
+		"price_90d": "Price — 90 days",
+		"portfolio": "Portfolio",
+		"all_assets": "All assets"
 	},
 	"common": {
 		"loading": "Loading…",
