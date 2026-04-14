@@ -68,10 +68,11 @@ func run() error {
 	settingsRepo := postgres.NewSettingsRepo(pool)
 
 	binanceClient := binance.New(binance.Config{
-		APIKey:       resolveSecret(ctx, settingsRepo, encryptor, commands.SettingBinanceAPIKey, cfg.BinanceAPIKey, logger),
-		APISecret:    resolveSecret(ctx, settingsRepo, encryptor, commands.SettingBinanceAPISecret, cfg.BinanceAPISecret, logger),
-		QuoteAsset:   cfg.QuoteCurrency,
-		TrackedBases: cfg.TrackedAssets,
+		APIKey:         resolveSecret(ctx, settingsRepo, encryptor, commands.SettingBinanceAPIKey, cfg.BinanceAPIKey, logger),
+		APISecret:      resolveSecret(ctx, settingsRepo, encryptor, commands.SettingBinanceAPISecret, cfg.BinanceAPISecret, logger),
+		QuoteAsset:     cfg.QuoteCurrency,
+		AcceptedQuotes: cfg.AcceptedQuotes,
+		TrackedBases:   cfg.TrackedAssets,
 	})
 	fxClient := binance.NewFxClient()
 
@@ -82,7 +83,7 @@ func run() error {
 	createAcquisitionUC := commands.NewCreateAcquisition(acquisitionRepo, assetRepo, binanceClient, logger)
 	updateAcquisitionUC := commands.NewUpdateAcquisition(acquisitionRepo, binanceClient)
 	deleteAcquisitionUC := commands.NewDeleteAcquisition(acquisitionRepo)
-	getPortfolioUC := queries.NewGetPortfolio(tradeRepo, acquisitionRepo, priceRepo, fxClient, cfg.QuoteCurrency)
+	getPortfolioUC := queries.NewGetPortfolio(tradeRepo, acquisitionRepo, priceRepo, fxClient, cfg.QuoteCurrency, cfg.AcceptedQuotes)
 	listTradesUC := queries.NewListTrades(tradeRepo, acquisitionRepo, cfg.QuoteCurrency)
 	getAssetDetailUC := queries.NewGetAssetDetail(tradeRepo, acquisitionRepo, priceRepo, fxClient, cfg.QuoteCurrency)
 
@@ -96,6 +97,7 @@ func run() error {
 		UpdateAcquisition: updateAcquisitionUC,
 		DeleteAcquisition: deleteAcquisitionUC,
 		SettingsRepo:      settingsRepo,
+		Binance:           binanceClient,
 		Fx:                fxClient,
 		DisplayCurrency:   cfg.DisplayCurrency,
 		QuoteCurrency:     cfg.QuoteCurrency,

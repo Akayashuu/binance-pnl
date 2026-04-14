@@ -26,6 +26,9 @@ type Config struct {
 	// Default: EUR.
 	DisplayCurrency shared.Symbol
 	TrackedAssets   []shared.Symbol
+	// AcceptedQuotes lists every quote currency we should fetch trades for
+	// (e.g. USDT,USDC). The primary QuoteCurrency is always included.
+	AcceptedQuotes []shared.Symbol
 }
 
 // Load reads configuration from the environment and validates required
@@ -77,6 +80,24 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("invalid TRACKED_ASSETS entry %q: %w", raw, err)
 		}
 		cfg.TrackedAssets = append(cfg.TrackedAssets, s)
+	}
+
+	// Accepted quote currencies for trade fetching. The primary quote is
+	// always included even if omitted from the env var.
+	acceptedQuotes := envOr("ACCEPTED_QUOTES", quote.String())
+	seen := map[string]bool{quote.String(): true}
+	cfg.AcceptedQuotes = []shared.Symbol{quote}
+	for _, raw := range strings.Split(acceptedQuotes, ",") {
+		raw = strings.TrimSpace(raw)
+		if raw == "" || seen[raw] {
+			continue
+		}
+		s, err := shared.NewSymbol(raw)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid ACCEPTED_QUOTES entry %q: %w", raw, err)
+		}
+		cfg.AcceptedQuotes = append(cfg.AcceptedQuotes, s)
+		seen[raw] = true
 	}
 
 	return cfg, nil

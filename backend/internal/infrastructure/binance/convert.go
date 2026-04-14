@@ -80,19 +80,22 @@ func (c *Client) convertItemToTrades(ctx context.Context, item bn.ConvertTradeHi
 		return nil, nil
 	}
 
-	quote := c.cfg.QuoteAsset
+	primaryQuote := c.cfg.QuoteAsset
 	execAt := time.UnixMilli(item.CreateTime)
 	orderID := strconv.FormatInt(item.OrderId, 10)
-	feeMoney, err := shared.NewMoney(decimal.Zero, quote)
-	if err != nil {
-		return nil, err
-	}
+
+	// Check if either leg matches any accepted quote currency.
+	matchedQuote, fromIsQuote, toIsQuote := c.matchAcceptedQuote(fromSym, toSym)
 
 	switch {
-	case fromSym.Equals(quote):
-		// Spent quote → received base. Single BUY.
+	case fromIsQuote:
+		// Spent an accepted quote → received base. Single BUY.
+		feeMoney, err := shared.NewMoney(decimal.Zero, matchedQuote)
+		if err != nil {
+			return nil, err
+		}
 		tr, err := buildConvertTrade(
-			"convert-"+orderID, toSym, quote, trade.SideBuy,
+			"convert-"+orderID, toSym, matchedQuote, trade.SideBuy,
 			toAmt, fromAmt.Div(toAmt), feeMoney, execAt,
 		)
 		if err != nil {
@@ -100,10 +103,14 @@ func (c *Client) convertItemToTrades(ctx context.Context, item bn.ConvertTradeHi
 		}
 		return []trade.Trade{tr}, nil
 
-	case toSym.Equals(quote):
-		// Spent base → received quote. Single SELL.
+	case toIsQuote:
+		// Spent base → received an accepted quote. Single SELL.
+		feeMoney, err := shared.NewMoney(decimal.Zero, matchedQuote)
+		if err != nil {
+			return nil, err
+		}
 		tr, err := buildConvertTrade(
-			"convert-"+orderID, fromSym, quote, trade.SideSell,
+			"convert-"+orderID, fromSym, matchedQuote, trade.SideSell,
 			fromAmt, toAmt.Div(fromAmt), feeMoney, execAt,
 		)
 		if err != nil {
@@ -112,26 +119,30 @@ func (c *Client) convertItemToTrades(ctx context.Context, item bn.ConvertTradeHi
 		return []trade.Trade{tr}, nil
 
 	default:
-		// Cross-convert: neither leg is the quote currency.
-		// Look up historical prices to value both legs in the quote.
-		fromPrice, err := c.PriceAt(ctx, fromSym, quote, execAt)
+		// Cross-convert: neither leg is an accepted quote currency.
+		// Look up historical prices to value both legs in the primary quote.
+		feeMoney, err := shared.NewMoney(decimal.Zero, primaryQuote)
+		if err != nil {
+			return nil, err
+		}
+		fromPrice, err := c.PriceAt(ctx, fromSym, primaryQuote, execAt)
 		if err != nil {
 			return nil, fmt.Errorf("price lookup %s: %w", fromSym, err)
 		}
-		toPrice, err := c.PriceAt(ctx, toSym, quote, execAt)
+		toPrice, err := c.PriceAt(ctx, toSym, primaryQuote, execAt)
 		if err != nil {
 			return nil, fmt.Errorf("price lookup %s: %w", toSym, err)
 		}
 
 		sellTr, err := buildConvertTrade(
-			"convert-"+orderID+"-sell", fromSym, quote, trade.SideSell,
+			"convert-"+orderID+"-sell", fromSym, primaryQuote, trade.SideSell,
 			fromAmt, fromPrice.Amount(), feeMoney, execAt,
 		)
 		if err != nil {
 			return nil, err
 		}
 		buyTr, err := buildConvertTrade(
-			"convert-"+orderID+"-buy", toSym, quote, trade.SideBuy,
+			"convert-"+orderID+"-buy", toSym, primaryQuote, trade.SideBuy,
 			toAmt, toPrice.Amount(), feeMoney, execAt,
 		)
 		if err != nil {
@@ -139,6 +150,20 @@ func (c *Client) convertItemToTrades(ctx context.Context, item bn.ConvertTradeHi
 		}
 		return []trade.Trade{sellTr, buyTr}, nil
 	}
+}
+
+// matchAcceptedQuote checks whether either symbol matches one of the accepted
+// quote currencies. Returns the matched quote and which side matched.
+func (c *Client) matchAcceptedQuote(from, to shared.Symbol) (matched shared.Symbol, fromIsQuote, toIsQuote bool) {
+	for _, q := range c.cfg.AcceptedQuotes {
+		if from.Equals(q) {
+			return q, true, false
+		}
+		if to.Equals(q) {
+			return q, false, true
+		}
+	}
+	return "", false, false
 }
 
 // buildConvertTrade creates a single convert trade with the given parameters.

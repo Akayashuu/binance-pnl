@@ -28,10 +28,11 @@ var (
 
 // Config configures a Binance client.
 type Config struct {
-	APIKey       string
-	APISecret    string
-	QuoteAsset   shared.Symbol // e.g. USDT
-	TrackedBases []shared.Symbol
+	APIKey         string
+	APISecret      string
+	QuoteAsset     shared.Symbol   // primary quote for pricing (e.g. USDT)
+	AcceptedQuotes []shared.Symbol // all quotes to fetch trades for (e.g. USDT, USDC)
+	TrackedBases   []shared.Symbol
 }
 
 // Client wraps the go-binance SDK.
@@ -48,25 +49,29 @@ func New(cfg Config) *Client {
 	}
 }
 
-// FetchTradesSince walks every tracked pair and pulls trades after `since`.
+// FetchTradesSince walks every tracked pair across all accepted quote
+// currencies and pulls trades after `since`.
 func (c *Client) FetchTradesSince(ctx context.Context, since time.Time) ([]trade.Trade, error) {
 	var out []trade.Trade
 	for _, base := range c.cfg.TrackedBases {
-		pair := base.String() + c.cfg.QuoteAsset.String()
-		svc := c.api.NewListTradesService().Symbol(pair)
-		if !since.IsZero() {
-			svc = svc.StartTime(since.UnixMilli() + 1)
-		}
-		res, err := svc.Do(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("list trades %s: %w", pair, err)
-		}
-		for _, t := range res {
-			tr, err := convertTrade(t, base, c.cfg.QuoteAsset)
-			if err != nil {
-				return nil, fmt.Errorf("convert trade %d: %w", t.ID, err)
+		for _, quote := range c.cfg.AcceptedQuotes {
+			pair := base.String() + quote.String()
+			svc := c.api.NewListTradesService().Symbol(pair)
+			if !since.IsZero() {
+				svc = svc.StartTime(since.UnixMilli() + 1)
 			}
-			out = append(out, tr)
+			res, err := svc.Do(ctx)
+			if err != nil {
+				// Pair may not exist on Binance (e.g. SOLUSDC) — skip gracefully.
+				continue
+			}
+			for _, t := range res {
+				tr, err := convertTrade(t, base, quote)
+				if err != nil {
+					return nil, fmt.Errorf("convert trade %d: %w", t.ID, err)
+				}
+				out = append(out, tr)
+			}
 		}
 	}
 	return out, nil
