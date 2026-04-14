@@ -27,13 +27,14 @@ type PortfolioOverview struct {
 }
 
 type GetPortfolio struct {
-	trades       ports.TradeRepository
-	acquisitions ports.AcquisitionRepository
-	prices       ports.PriceRepository
-	fx           ports.FxRateProvider
-	calc         pnl.Calculator
-	quote        shared.Symbol
-	now          func() time.Time
+	trades         ports.TradeRepository
+	acquisitions   ports.AcquisitionRepository
+	prices         ports.PriceRepository
+	fx             ports.FxRateProvider
+	calc           pnl.Calculator
+	quote          shared.Symbol
+	acceptedQuotes []shared.Symbol
+	now            func() time.Time
 }
 
 func NewGetPortfolio(
@@ -42,15 +43,17 @@ func NewGetPortfolio(
 	prices ports.PriceRepository,
 	fx ports.FxRateProvider,
 	quote shared.Symbol,
+	acceptedQuotes []shared.Symbol,
 ) *GetPortfolio {
 	return &GetPortfolio{
-		trades:       trades,
-		acquisitions: acquisitions,
-		prices:       prices,
-		fx:           fx,
-		calc:         pnl.NewCalculator(),
-		quote:        quote,
-		now:          time.Now,
+		trades:         trades,
+		acquisitions:   acquisitions,
+		prices:         prices,
+		fx:             fx,
+		calc:           pnl.NewCalculator(),
+		quote:          quote,
+		acceptedQuotes: acceptedQuotes,
+		now:            time.Now,
 	}
 }
 
@@ -125,7 +128,106 @@ func (uc *GetPortfolio) Execute(ctx context.Context) (PortfolioOverview, error) 
 		}
 	}
 
+	// Cash balances for accepted quote currencies (USDT, USDC…).
+	cashPositions := uc.buildCashPositions(ctx, allTrades, allAcqs)
+	for _, cp := range cashPositions {
+		overview.Positions = append(overview.Positions, cp)
+		if overview.TotalValue, err = overview.TotalValue.Add(cp.MarketValue); err != nil {
+			return PortfolioOverview{}, err
+		}
+	}
+
 	return overview, nil
+}
+
+// buildCashPositions computes the net balance of each accepted quote currency
+// from raw (un-normalized) trade flows and deposits, then returns a synthetic
+// pnl.Result per positive balance so stablecoins appear in the positions table.
+func (uc *GetPortfolio) buildCashPositions(
+	ctx context.Context,
+	trades []trade.Trade,
+	acqs []acquisition.Acquisition,
+) []pnl.Result {
+	// Identify accepted quote currencies.
+	accepted := make(map[string]shared.Symbol, len(uc.acceptedQuotes))
+	for _, q := range uc.acceptedQuotes {
+		accepted[q.String()] = q
+	}
+
+	// Compute net cash flow per accepted quote.
+	balances := make(map[string]decimal.Decimal, len(accepted))
+	for _, t := range trades {
+		qStr := t.Quote().String()
+		if _, ok := accepted[qStr]; !ok {
+			continue
+		}
+		gross := t.Quantity().Decimal().Mul(t.Price().Amount())
+		switch t.Side() {
+		case trade.SideBuy:
+			cost := gross
+			if t.Fee().Currency().Equals(t.Quote()) {
+				cost = cost.Add(t.Fee().Amount())
+			}
+			balances[qStr] = balances[qStr].Sub(cost)
+		case trade.SideSell:
+			proceeds := gross
+			if t.Fee().Currency().Equals(t.Quote()) {
+				proceeds = proceeds.Sub(t.Fee().Amount())
+			}
+			balances[qStr] = balances[qStr].Add(proceeds)
+		}
+	}
+	// Add deposits of accepted quote currencies themselves.
+	for _, a := range acqs {
+		aStr := a.Asset().String()
+		if _, ok := accepted[aStr]; !ok {
+			continue
+		}
+		balances[aStr] = balances[aStr].Add(a.Quantity().Decimal())
+	}
+
+	var results []pnl.Result
+	for qStr, bal := range balances {
+		if !bal.IsPositive() {
+			continue
+		}
+		sym := accepted[qStr]
+
+		qty, err := shared.NewQuantity(bal)
+		if err != nil {
+			continue
+		}
+
+		// Price of this stablecoin in the primary quote.
+		var price shared.Money
+		if sym.Equals(uc.quote) {
+			price, _ = shared.NewMoney(decimal.NewFromInt(1), uc.quote)
+		} else {
+			if rate, err := uc.fx.Rate(ctx, sym, uc.quote); err == nil {
+				price, _ = shared.NewMoney(rate, uc.quote)
+			} else {
+				price, _ = shared.NewMoney(decimal.NewFromInt(1), uc.quote)
+			}
+		}
+
+		marketValue := price.MulQuantity(qty)
+		costBasis := price.MulQuantity(qty)
+		zero := shared.ZeroMoney(uc.quote)
+
+		results = append(results, pnl.Result{
+			Asset:         sym,
+			Quote:         uc.quote,
+			HeldQuantity:  qty,
+			AverageCost:   price,
+			CurrentPrice:  price,
+			MarketValue:   marketValue,
+			CostBasis:     costBasis,
+			UnrealizedPnL: zero,
+			RealizedPnL:   zero,
+			TotalPnL:      zero,
+		})
+	}
+	return results
 }
 
 // acquisitionsAsBuyTrades wraps each Acquisition as a synthetic BUY trade so
