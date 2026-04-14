@@ -153,10 +153,17 @@ func (p *Position) applySell(tr trade.Trade) error {
 		return err
 	}
 
+	// Reduce totalInvested by the cost basis of the sold portion so that
+	// "Total Invested" reflects capital still at work, not lifetime buys.
+	newInvested, err := shared.NewMoney(p.totalInvested.Amount().Sub(costRemoved), p.quote)
+	if err != nil {
+		return err
+	}
+
 	p.heldQuantity = newQty
 	p.realizedPnL = newRealized
+	p.totalInvested = newInvested
 	// Average cost is unchanged on sells under AVCO.
-	// totalInvested is unchanged — it tracks gross capital deployed.
 	return nil
 }
 
