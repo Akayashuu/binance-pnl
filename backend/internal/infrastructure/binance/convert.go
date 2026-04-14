@@ -12,9 +12,9 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// FetchConvertSince walks Binance Convert history. Cross-converts (neither
-// leg in the configured quote) are skipped — they would need an extra price
-// lookup to be valued. Window is capped at 30 days per API call.
+// FetchConvertSince walks Binance Convert history. For cross-converts (neither
+// leg in the configured quote), a historical price lookup is used so that both
+// sides are valued in the quote currency. Window is capped at 30 days per API call.
 func (c *Client) FetchConvertSince(ctx context.Context, since time.Time) ([]trade.Trade, error) {
 	end := time.Now()
 	if since.IsZero() {
@@ -40,95 +40,133 @@ func (c *Client) FetchConvertSince(ctx context.Context, since time.Time) ([]trad
 			if item.OrderStatus != "SUCCESS" {
 				continue
 			}
-			tr, ok, err := convertItemToTrade(item, c.cfg.QuoteAsset)
+			trades, err := c.convertItemToTrades(ctx, item)
 			if err != nil {
 				return nil, fmt.Errorf("convert order %d: %w", item.OrderId, err)
 			}
-			if !ok {
-				continue
-			}
-			out = append(out, tr)
+			out = append(out, trades...)
 		}
 	}
 	return out, nil
 }
 
-// convertItemToTrade maps a ConvertTradeHistoryItem into a domain Trade.
+// convertItemToTrades maps a ConvertTradeHistoryItem into one or two domain
+// Trades.
 //
-// Returns ok=false (without error) when the convert pair has no leg in the
-// configured quote currency — those orders are skipped.
-func convertItemToTrade(item bn.ConvertTradeHistoryItem, quote shared.Symbol) (trade.Trade, bool, error) {
+// When one leg matches the configured quote currency, a single trade is
+// returned (BUY or SELL). For cross-converts (neither leg is the quote), two
+// synthetic trades are produced: a SELL of the source asset and a BUY of the
+// destination asset, both priced via a historical kline lookup so the P&L
+// stays consistent.
+func (c *Client) convertItemToTrades(ctx context.Context, item bn.ConvertTradeHistoryItem) ([]trade.Trade, error) {
 	fromSym, err := shared.NewSymbol(item.FromAsset)
 	if err != nil {
-		return trade.Trade{}, false, err
+		return nil, err
 	}
 	toSym, err := shared.NewSymbol(item.ToAsset)
 	if err != nil {
-		return trade.Trade{}, false, err
+		return nil, err
 	}
 
 	fromAmt, err := decimal.NewFromString(item.FromAmount)
 	if err != nil {
-		return trade.Trade{}, false, fmt.Errorf("from amount: %w", err)
+		return nil, fmt.Errorf("from amount: %w", err)
 	}
 	toAmt, err := decimal.NewFromString(item.ToAmount)
 	if err != nil {
-		return trade.Trade{}, false, fmt.Errorf("to amount: %w", err)
+		return nil, fmt.Errorf("to amount: %w", err)
 	}
 	if fromAmt.IsZero() || toAmt.IsZero() {
-		return trade.Trade{}, false, nil
+		return nil, nil
 	}
 
-	var (
-		side     trade.Side
-		base     shared.Symbol
-		baseQty  decimal.Decimal
-		unitCost decimal.Decimal
-	)
-	switch {
-	case fromSym.Equals(quote):
-		// Spent quote → received base. BUY base.
-		side = trade.SideBuy
-		base = toSym
-		baseQty = toAmt
-		unitCost = fromAmt.Div(toAmt)
-	case toSym.Equals(quote):
-		// Spent base → received quote. SELL base.
-		side = trade.SideSell
-		base = fromSym
-		baseQty = fromAmt
-		unitCost = toAmt.Div(fromAmt)
-	default:
-		// Neither side is the configured quote currency.
-		return trade.Trade{}, false, nil
-	}
-
-	qty, err := shared.NewQuantity(baseQty)
-	if err != nil {
-		return trade.Trade{}, false, err
-	}
-	priceMoney, err := shared.NewMoney(unitCost, quote)
-	if err != nil {
-		return trade.Trade{}, false, err
-	}
+	quote := c.cfg.QuoteAsset
+	execAt := time.UnixMilli(item.CreateTime)
+	orderID := strconv.FormatInt(item.OrderId, 10)
 	feeMoney, err := shared.NewMoney(decimal.Zero, quote)
 	if err != nil {
-		return trade.Trade{}, false, err
+		return nil, err
 	}
 
-	tr, err := trade.New(trade.Params{
-		ID:         "convert-" + strconv.FormatInt(item.OrderId, 10),
-		Asset:      base,
+	switch {
+	case fromSym.Equals(quote):
+		// Spent quote → received base. Single BUY.
+		tr, err := buildConvertTrade(
+			"convert-"+orderID, toSym, quote, trade.SideBuy,
+			toAmt, fromAmt.Div(toAmt), feeMoney, execAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		return []trade.Trade{tr}, nil
+
+	case toSym.Equals(quote):
+		// Spent base → received quote. Single SELL.
+		tr, err := buildConvertTrade(
+			"convert-"+orderID, fromSym, quote, trade.SideSell,
+			fromAmt, toAmt.Div(fromAmt), feeMoney, execAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		return []trade.Trade{tr}, nil
+
+	default:
+		// Cross-convert: neither leg is the quote currency.
+		// Look up historical prices to value both legs in the quote.
+		fromPrice, err := c.PriceAt(ctx, fromSym, quote, execAt)
+		if err != nil {
+			return nil, fmt.Errorf("price lookup %s: %w", fromSym, err)
+		}
+		toPrice, err := c.PriceAt(ctx, toSym, quote, execAt)
+		if err != nil {
+			return nil, fmt.Errorf("price lookup %s: %w", toSym, err)
+		}
+
+		sellTr, err := buildConvertTrade(
+			"convert-"+orderID+"-sell", fromSym, quote, trade.SideSell,
+			fromAmt, fromPrice.Amount(), feeMoney, execAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		buyTr, err := buildConvertTrade(
+			"convert-"+orderID+"-buy", toSym, quote, trade.SideBuy,
+			toAmt, toPrice.Amount(), feeMoney, execAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		return []trade.Trade{sellTr, buyTr}, nil
+	}
+}
+
+// buildConvertTrade creates a single convert trade with the given parameters.
+func buildConvertTrade(
+	id string,
+	asset, quote shared.Symbol,
+	side trade.Side,
+	quantity, unitPrice decimal.Decimal,
+	fee shared.Money,
+	execAt time.Time,
+) (trade.Trade, error) {
+	qty, err := shared.NewQuantity(quantity)
+	if err != nil {
+		return trade.Trade{}, err
+	}
+	priceMoney, err := shared.NewMoney(unitPrice, quote)
+	if err != nil {
+		return trade.Trade{}, err
+	}
+	return trade.New(trade.Params{
+		ID:         id,
+		Asset:      asset,
 		Quote:      quote,
 		Side:       side,
 		Source:     shared.SourceConvert,
 		Quantity:   qty,
 		Price:      priceMoney,
-		Fee:        feeMoney,
-		ExecutedAt: time.UnixMilli(item.CreateTime),
+		Fee:        fee,
+		ExecutedAt: execAt,
 	})
-	if err != nil {
-		return trade.Trade{}, false, err
-	}
-	return tr, true, nil
 }
