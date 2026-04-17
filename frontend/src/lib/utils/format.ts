@@ -8,11 +8,21 @@
 export function formatMoney(amount: string, currency: string, locale = 'en-US'): string {
 	const n = Number(amount);
 	if (Number.isNaN(n)) return `${amount} ${currency}`;
+	const decimals = smartDecimals(n);
 	const formatter = new Intl.NumberFormat(locale, {
 		minimumFractionDigits: 2,
-		maximumFractionDigits: 2
+		maximumFractionDigits: decimals
 	});
 	return `${formatter.format(n)} ${currency}`;
+}
+
+/** Return enough decimal places so small values stay meaningful. */
+function smartDecimals(n: number): number {
+	const abs = Math.abs(n);
+	if (abs === 0 || abs >= 1) return 2;
+	// Count leading zeros after the decimal point, then show 2 significant digits
+	const digits = -Math.floor(Math.log10(abs)) + 1;
+	return Math.min(digits, 8);
 }
 
 /**

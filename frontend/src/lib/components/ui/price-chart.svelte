@@ -23,6 +23,13 @@
 		Legend
 	);
 
+	function smartChartDecimals(n: number): number {
+		const abs = Math.abs(n);
+		if (abs === 0 || abs >= 1) return 2;
+		const digits = -Math.floor(Math.log10(abs)) + 1;
+		return Math.min(digits, 8);
+	}
+
 	export interface Dataset {
 		label: string;
 		data: number[];
@@ -92,9 +99,10 @@
 							callbacks: {
 								label: (item: TooltipItem<'line'>) => {
 									if (item.parsed.y == null) return '';
+									const maxDec = smartChartDecimals(item.parsed.y);
 									const val = item.parsed.y.toLocaleString(undefined, {
 										minimumFractionDigits: 2,
-										maximumFractionDigits: 2
+										maximumFractionDigits: maxDec
 									});
 									return multi ? `${item.dataset.label}: ${val}` : val;
 								}
@@ -114,11 +122,13 @@
 								maxTicksLimit: 5,
 								color: '#666',
 								font: { size: 10 },
-								callback: (v: number | string) =>
-									Number(v).toLocaleString(undefined, {
+								callback: (v: number | string) => {
+									const num = Number(v);
+									return num.toLocaleString(undefined, {
 										minimumFractionDigits: 0,
-										maximumFractionDigits: 2
-									})
+										maximumFractionDigits: smartChartDecimals(num)
+									});
+								}
 							},
 							grid: { color: '#ffffff08' }
 						}
