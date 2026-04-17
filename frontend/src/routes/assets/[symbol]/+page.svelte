@@ -3,7 +3,7 @@
 	import { page } from '$app/stores';
 	import { api } from '$lib/api/client';
 	import type { AssetDetail, KlinePoint, Trade } from '$lib/api/types';
-	import { Card, CardContent, CardHeader, CardTitle, DualMoney, HelpHint, PriceChart } from '$lib/components/ui';
+	import { Card, CardContent, CardHeader, CardTitle, CandlestickChart, DualMoney, HelpHint } from '$lib/components/ui';
 	import AddFundModal from '$lib/components/add-fund-modal.svelte';
 	import SourceBadge from '$lib/components/source-badge.svelte';
 	import { displayCurrency } from '$lib/stores/display-currency';
@@ -134,15 +134,9 @@
 		{@const displayAmt = d.pnl.current_price.display ? Number(d.pnl.current_price.display.amount) : 0}
 		{@const rate = displayAmt > 0 && priceAmt > 0 ? displayAmt / priceAmt : 1}
 		{@const cur = d.pnl.current_price.display?.currency ?? d.pnl.current_price.currency}
-		{@const klData = klines.map((k) => Number(k.close) * rate)}
-		{@const up = klData[klData.length - 1] >= klData[0]}
 		<div class="mt-6 rounded-lg border bg-card p-4">
 			<h2 class="mb-2 text-sm font-semibold text-muted-foreground">{$_('chart.price_90d')} ({cur})</h2>
-			<PriceChart
-				labels={klines.map((k) => new Date(k.time).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}
-				datasets={[{ label: `${d.pnl.asset} (${cur})`, data: klData, color: up ? '#22c55e' : '#ef4444' }]}
-				height={250}
-			/>
+			<CandlestickChart {klines} {rate} height={320} />
 		</div>
 	{/if}
 

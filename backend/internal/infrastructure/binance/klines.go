@@ -8,10 +8,14 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// Kline is a single candlestick data point.
+// Kline is a single candlestick data point (OHLCV).
 type Kline struct {
 	OpenTime int64           `json:"open_time"`
+	Open     decimal.Decimal `json:"open"`
+	High     decimal.Decimal `json:"high"`
+	Low      decimal.Decimal `json:"low"`
 	Close    decimal.Decimal `json:"close"`
+	Volume   decimal.Decimal `json:"volume"`
 }
 
 // FetchKlines returns historical close prices for the given asset in the
@@ -34,13 +38,21 @@ func (c *Client) FetchKlines(ctx context.Context, asset shared.Symbol, interval 
 
 	out := make([]Kline, 0, len(res))
 	for _, k := range res {
+		openAmt, _ := decimal.NewFromString(k.Open)
+		highAmt, _ := decimal.NewFromString(k.High)
+		lowAmt, _ := decimal.NewFromString(k.Low)
 		closeAmt, err := decimal.NewFromString(k.Close)
 		if err != nil {
 			continue
 		}
+		volAmt, _ := decimal.NewFromString(k.Volume)
 		out = append(out, Kline{
 			OpenTime: k.OpenTime,
+			Open:     openAmt,
+			High:     highAmt,
+			Low:      lowAmt,
 			Close:    closeAmt,
+			Volume:   volAmt,
 		})
 	}
 	return out, nil

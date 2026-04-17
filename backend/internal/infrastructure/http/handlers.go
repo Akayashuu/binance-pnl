@@ -274,12 +274,23 @@ func (h *Handlers) getKlines(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type klineDTO struct {
-		Time  int64  `json:"time"`
-		Close string `json:"close"`
+		Time   int64  `json:"time"`
+		Open   string `json:"open"`
+		High   string `json:"high"`
+		Low    string `json:"low"`
+		Close  string `json:"close"`
+		Volume string `json:"volume"`
 	}
 	out := make([]klineDTO, 0, len(klines))
 	for _, k := range klines {
-		out = append(out, klineDTO{Time: k.OpenTime, Close: k.Close.String()})
+		out = append(out, klineDTO{
+			Time:   k.OpenTime,
+			Open:   k.Open.String(),
+			High:   k.High.String(),
+			Low:    k.Low.String(),
+			Close:  k.Close.String(),
+			Volume: k.Volume.String(),
+		})
 	}
 	writeJSON(w, http.StatusOK, out)
 }

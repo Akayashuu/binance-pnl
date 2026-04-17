@@ -19,6 +19,7 @@
 		"realized_pnl_help": "The gain or loss you have already cashed in via past sells. Once a sale is done, the result is frozen here and doesn't move regardless of what the market does next.",
 		"total_pnl": "Total P&L",
 		"positions": "Positions",
+		"hide_dust": "Hide dust",
 		"empty": "No positions yet. Configure your Binance API key in Settings, then click Sync.",
 		"sync": "Sync Binance",
 		"full_sync": "Full Sync",

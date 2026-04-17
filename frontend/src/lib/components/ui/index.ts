@@ -8,3 +8,4 @@ export { default as Label } from './label.svelte';
 export { default as DualMoney } from './dual-money.svelte';
 export { default as HelpHint } from './help-hint.svelte';
 export { default as PriceChart } from './price-chart.svelte';
+export { default as CandlestickChart } from './candlestick-chart.svelte';

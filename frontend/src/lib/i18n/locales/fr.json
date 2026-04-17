@@ -19,6 +19,7 @@
 		"realized_pnl_help": "Le gain ou la perte déjà encaissé via tes ventes passées. Une fois qu'une vente est faite, le résultat est figé ici et ne bouge plus, peu importe ce que fait le marché ensuite.",
 		"total_pnl": "P&L total",
 		"positions": "Positions",
+		"hide_dust": "Masquer la poussière",
 		"empty": "Aucune position. Configurez votre clé API Binance dans les paramètres puis cliquez sur Synchroniser.",
 		"sync": "Synchroniser Binance",
 		"full_sync": "Sync complète",

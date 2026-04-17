@@ -91,5 +91,9 @@ export interface SyncResult {
 
 export interface KlinePoint {
 	time: number; // unix ms
+	open: string;
+	high: string;
+	low: string;
 	close: string;
+	volume: string;
 }
