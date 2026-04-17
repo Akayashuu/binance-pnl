@@ -51,10 +51,21 @@ func New(cfg Config) *Client {
 
 // FetchTradesSince walks every tracked pair across all accepted quote
 // currencies and pulls trades after `since`.
+//
+// Binance has no "all my trades" endpoint — GetMyTrades requires a symbol —
+// so we have to enumerate the bases ourselves. We start from the configured
+// TrackedBases and augment them with every coin currently sitting in the
+// user's account (free or locked). That way users don't need to maintain
+// TRACKED_ASSETS by hand: any coin they hold gets picked up automatically.
 func (c *Client) FetchTradesSince(ctx context.Context, since time.Time) ([]trade.Trade, error) {
+	bases := c.resolveBases(ctx)
+
 	var out []trade.Trade
-	for _, base := range c.cfg.TrackedBases {
+	for _, base := range bases {
 		for _, quote := range c.cfg.AcceptedQuotes {
+			if base.Equals(quote) {
+				continue
+			}
 			pair := base.String() + quote.String()
 			svc := c.api.NewListTradesService().Symbol(pair)
 			if !since.IsZero() {
@@ -75,6 +86,46 @@ func (c *Client) FetchTradesSince(ctx context.Context, since time.Time) ([]trade
 		}
 	}
 	return out, nil
+}
+
+// resolveBases returns the set of base assets to fetch trades for. It always
+// includes the configured TrackedBases and, when account access is available,
+// every non-zero balance on the account. Failures to read balances are not
+// fatal — we fall back to TrackedBases alone.
+func (c *Client) resolveBases(ctx context.Context) []shared.Symbol {
+	seen := make(map[shared.Symbol]struct{}, len(c.cfg.TrackedBases))
+	out := make([]shared.Symbol, 0, len(c.cfg.TrackedBases))
+	add := func(s shared.Symbol) {
+		if s.IsZero() {
+			return
+		}
+		if _, ok := seen[s]; ok {
+			return
+		}
+		seen[s] = struct{}{}
+		out = append(out, s)
+	}
+	for _, b := range c.cfg.TrackedBases {
+		add(b)
+	}
+
+	acct, err := c.api.NewGetAccountService().Do(ctx)
+	if err != nil {
+		return out
+	}
+	for _, b := range acct.Balances {
+		free, _ := decimal.NewFromString(b.Free)
+		locked, _ := decimal.NewFromString(b.Locked)
+		if free.Add(locked).IsZero() {
+			continue
+		}
+		sym, err := shared.NewSymbol(b.Asset)
+		if err != nil {
+			continue
+		}
+		add(sym)
+	}
+	return out
 }
 
 // LatestPrice fetches the spot ticker for one base asset.

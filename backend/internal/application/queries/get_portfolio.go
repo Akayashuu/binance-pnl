@@ -75,6 +75,15 @@ func (uc *GetPortfolio) Execute(ctx context.Context) (PortfolioOverview, error) 
 	merged = append(merged, acquisitionsAsBuyTrades(allAcqs)...)
 	normalized := normalizeTradesToQuote(ctx, uc.fx, merged, uc.quote)
 
+	// Accepted quote currencies (USDT, USDC, EUR…) are aggregated as cash
+	// positions further down — skip them here to avoid emitting two rows for
+	// the same asset when the user has both bought it as a base (e.g. fiat-buy
+	// EUR→USDT) and held it as a quote balance.
+	acceptedQuoteSet := make(map[shared.Symbol]struct{}, len(uc.acceptedQuotes))
+	for _, q := range uc.acceptedQuotes {
+		acceptedQuoteSet[q] = struct{}{}
+	}
+
 	byAsset := make(map[shared.Symbol][]trade.Trade)
 	for _, t := range normalized {
 		byAsset[t.Asset()] = append(byAsset[t.Asset()], t)
@@ -91,6 +100,9 @@ func (uc *GetPortfolio) Execute(ctx context.Context) (PortfolioOverview, error) 
 	}
 
 	for sym, ts := range byAsset {
+		if _, isCash := acceptedQuoteSet[sym]; isCash {
+			continue
+		}
 		pos, err := position.Build(sym, uc.quote, ts)
 		if err != nil {
 			return PortfolioOverview{}, fmt.Errorf("build position %s: %w", sym, err)
@@ -157,24 +169,38 @@ func (uc *GetPortfolio) buildCashPositions(
 	// Compute net cash flow per accepted quote.
 	balances := make(map[string]decimal.Decimal, len(accepted))
 	for _, t := range trades {
+		// (1) Accepted quote acting as the QUOTE side of a trade — buying
+		// drains the balance, selling adds to it.
 		qStr := t.Quote().String()
-		if _, ok := accepted[qStr]; !ok {
-			continue
+		if _, ok := accepted[qStr]; ok {
+			gross := t.Quantity().Decimal().Mul(t.Price().Amount())
+			switch t.Side() {
+			case trade.SideBuy:
+				cost := gross
+				if t.Fee().Currency().Equals(t.Quote()) {
+					cost = cost.Add(t.Fee().Amount())
+				}
+				balances[qStr] = balances[qStr].Sub(cost)
+			case trade.SideSell:
+				proceeds := gross
+				if t.Fee().Currency().Equals(t.Quote()) {
+					proceeds = proceeds.Sub(t.Fee().Amount())
+				}
+				balances[qStr] = balances[qStr].Add(proceeds)
+			}
 		}
-		gross := t.Quantity().Decimal().Mul(t.Price().Amount())
-		switch t.Side() {
-		case trade.SideBuy:
-			cost := gross
-			if t.Fee().Currency().Equals(t.Quote()) {
-				cost = cost.Add(t.Fee().Amount())
+		// (2) Accepted quote acting as the ASSET side — e.g. fiat-buy
+		// EUR→USDT credits the USDT balance; selling USDT for something
+		// else debits it. Without this branch we'd lose those flows.
+		aStr := t.Asset().String()
+		if _, ok := accepted[aStr]; ok {
+			qty := t.Quantity().Decimal()
+			switch t.Side() {
+			case trade.SideBuy:
+				balances[aStr] = balances[aStr].Add(qty)
+			case trade.SideSell:
+				balances[aStr] = balances[aStr].Sub(qty)
 			}
-			balances[qStr] = balances[qStr].Sub(cost)
-		case trade.SideSell:
-			proceeds := gross
-			if t.Fee().Currency().Equals(t.Quote()) {
-				proceeds = proceeds.Sub(t.Fee().Amount())
-			}
-			balances[qStr] = balances[qStr].Add(proceeds)
 		}
 	}
 	// Add deposits of accepted quote currencies themselves.
